@@ -4,9 +4,19 @@ import java.io.*;
 import java.net.Socket;
 import java.nio.file.Files;
 import java.util.HashMap;
+import java.util.Map;
 
+import db.DataBase;
+import model.User;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import util.HttpHeader;
+import util.HttpRequestUtils;
+import util.IOUtils;
+
+import static db.DataBase.addUser;
+import static util.HttpRequestUtils.parseQueryString;
+import static util.IOUtils.readData;
 
 public class RequestHandler extends Thread {
     public static final String WEBAPP = "./webapp";
@@ -35,24 +45,80 @@ public class RequestHandler extends Thread {
             String method = http[0];
             String url = http[1];
             String protocol = http[2];
+            String requestUrl = url;
+            Map<String, String> queryString;
+            queryString = new HashMap<>();
+            int index = url.indexOf("?");
+            if (index != -1) {
+                requestUrl = url.substring(0, index);
+                String param = url.substring(index + 1);
+                queryString = parseQueryString(param);
 
-            HashMap<String, String> headerMap = new HashMap<>();
-            while (!"".equals(line)) {
-                line = bufferedReader.readLine();
-                if (line.isEmpty()) {
-                    break;
+            }
+            HashMap<String, String> readHeader = readHeader(bufferedReader, line);
+
+            if (method.equals("GET")) {
+
+                if (requestUrl.equals("/user/create")) {
+                    User user = new User(
+                            queryString.get("userId"),
+                            queryString.get("password"),
+                            queryString.get("name"),
+                            queryString.get("email")
+
+                    );
+                    addUser(user);
+                    log.info(user.toString());
                 }
-                String[] split = line.split(": ");
-                headerMap.put(split[0], split[1]);
+                DataOutputStream dos = new DataOutputStream(out);
+                byte[] body = Files.readAllBytes(new File(WEBAPP + requestUrl).toPath());
+                response200Header(dos, body.length);
+                responseBody(dos, body);
+            } else if (method.equals("POST")) {
+
+                if (requestUrl.equals("/user/create")) {
+                    String requestBody = readData(bufferedReader, Integer.parseInt(readHeader.get(HttpHeader.CONTENT_LENGTH)));
+                    queryString = parseQueryString(requestBody);
+                    User user = new User(
+                            queryString.get("userId"),
+                            queryString.get("password"),
+                            queryString.get("name"),
+                            queryString.get("email")
+
+                    );
+                    addUser(user);
+                    log.info(user.toString());
+
+                }
+
+
             }
 
-            DataOutputStream dos = new DataOutputStream(out);
-            byte[] body = Files.readAllBytes(new File(WEBAPP + url).toPath());
-            response200Header(dos, body.length);
-            responseBody(dos, body);
+
+//            HashMap<String, String> readHeader = readHeader(bufferedReader, line);
+//
+//            DataOutputStream dos = new DataOutputStream(out);
+//            byte[] body = Files.readAllBytes(new File(WEBAPP + url).toPath());
+//            response200Header(dos, body.length);
+//            responseBody(dos, body);
         } catch (IOException e) {
             log.error(e.getMessage());
         }
+    }
+
+    private HashMap<String, String> readHeader(BufferedReader bufferedReader, String line) throws IOException {
+        HashMap<String, String> headerMap = new HashMap<>();
+        while (!"".equals(line)) {
+            line = bufferedReader.readLine();
+            if (line.isEmpty()) {
+                break;
+            }
+            String[] split = line.split(": ");
+            headerMap.put(split[0], split[1]);
+
+
+        }
+        return headerMap;
     }
 
     private void response200Header(DataOutputStream dos, int lengthOfBodyContent) {
