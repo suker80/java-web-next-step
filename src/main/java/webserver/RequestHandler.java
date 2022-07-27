@@ -89,9 +89,10 @@ public class RequestHandler extends Thread {
                     addUser(user);
                     log.info(user.toString());
 
+                    DataOutputStream dos = new DataOutputStream(out);
+                    String redirectUrl = "http://localhost:8080/index.html";
+                    response302Header(dos, redirectUrl);
                 }
-
-
             }
 
 
@@ -129,6 +130,15 @@ public class RequestHandler extends Thread {
             dos.writeBytes("\r\n");
         } catch (IOException e) {
             log.error(e.getMessage());
+        }
+    }
+
+    private void response302Header(DataOutputStream dos,String redirectUrl) {
+        try{
+            dos.writeBytes("HTTP/1.1 302 Found \n");
+            dos.writeBytes("Location: "+redirectUrl+'\n');
+        } catch (IOException e) {
+            throw new RuntimeException(e);
         }
     }
 
