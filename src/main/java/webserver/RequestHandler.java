@@ -20,6 +20,7 @@ import static util.IOUtils.readData;
 
 public class RequestHandler extends Thread {
     public static final String WEBAPP = "./webapp";
+    public static final String BASE_URL = "http://localhost:8080/";
     private static final Logger log = LoggerFactory.getLogger(RequestHandler.class);
 
     private Socket connection;
@@ -69,11 +70,14 @@ public class RequestHandler extends Thread {
                     );
                     addUser(user);
                     log.info(user.toString());
+                } else {
+                    DataOutputStream dos = new DataOutputStream(out);
+                    byte[] body = Files.readAllBytes(new File(WEBAPP + requestUrl).toPath());
+                    response200Header(dos, body.length);
+                    responseBody(dos, body);
                 }
-                DataOutputStream dos = new DataOutputStream(out);
-                byte[] body = Files.readAllBytes(new File(WEBAPP + requestUrl).toPath());
-                response200Header(dos, body.length);
-                responseBody(dos, body);
+
+
             } else if (method.equals("POST")) {
 
                 if (requestUrl.equals("/user/create")) {
@@ -92,6 +96,24 @@ public class RequestHandler extends Thread {
                     DataOutputStream dos = new DataOutputStream(out);
                     String redirectUrl = "http://localhost:8080/index.html";
                     response302Header(dos, redirectUrl);
+                } else if (requestUrl.equals("/user/login")) {
+                    String requestBody = readData(bufferedReader, Integer.parseInt(readHeader.get(HttpHeader.CONTENT_LENGTH)));
+                    queryString = parseQueryString(requestBody);
+                    String userId = queryString.get("userId");
+                    String password = queryString.get("password");
+                    User findUser = DataBase.findUserById(userId);
+                    if (findUser.getPassword().equals(password)) {
+                        DataOutputStream dos = new DataOutputStream(out);
+                        responseLogin302SuccessHeader(dos);
+
+                    } else {
+
+                        DataOutputStream dos = new DataOutputStream(out);
+                        dos.writeBytes("Set-Cookie: logined=false\n");
+                        dos.writeBytes("access-control-expose-headers: Set-Cookie\r\n");
+
+                        response302Header(dos, BASE_URL + "/login.html\r\n");
+                    }
                 }
             }
 
@@ -105,6 +127,15 @@ public class RequestHandler extends Thread {
         } catch (IOException e) {
             log.error(e.getMessage());
         }
+    }
+
+    private void responseLogin302SuccessHeader(DataOutputStream dos) throws IOException {
+        dos.writeBytes("HTTP/1.1 302 Redirect \r\n");
+        dos.writeBytes("Set-Cookie: logined=true \r\n");
+        dos.writeBytes("Location: /index.html \r\n");
+        dos.writeBytes("\r\n");
+
+
     }
 
     private HashMap<String, String> readHeader(BufferedReader bufferedReader, String line) throws IOException {
@@ -133,10 +164,10 @@ public class RequestHandler extends Thread {
         }
     }
 
-    private void response302Header(DataOutputStream dos,String redirectUrl) {
-        try{
+    private void response302Header(DataOutputStream dos, String redirectUrl) {
+        try {
             dos.writeBytes("HTTP/1.1 302 Found \n");
-            dos.writeBytes("Location: "+redirectUrl+'\n');
+            dos.writeBytes("Location: " + redirectUrl + '\n');
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
