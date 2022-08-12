@@ -1,20 +1,20 @@
 package webserver;
 
-import java.io.*;
-import java.net.Socket;
-import java.nio.file.Files;
-import java.util.HashMap;
-import java.util.Map;
-
-import db.DataBase;
 import model.User;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import util.HttpHeader;
 import util.HttpRequestUtils;
-import util.IOUtils;
 
-import static db.DataBase.addUser;
+import java.io.*;
+import java.net.Socket;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
+
+import static db.DataBase.*;
 import static util.HttpRequestUtils.parseQueryString;
 import static util.IOUtils.readData;
 
@@ -47,16 +47,21 @@ public class RequestHandler extends Thread {
             String url = http[1];
             String protocol = http[2];
             String requestUrl = url;
-            Map<String, String> queryString;
-            queryString = new HashMap<>();
+            String[] s = url.split(" ");
+            System.out.println(s);
+            Map<String, String> queryString = new HashMap<>();
             int index = url.indexOf("?");
+            String extend = null;
             if (index != -1) {
                 requestUrl = url.substring(0, index);
                 String param = url.substring(index + 1);
                 queryString = parseQueryString(param);
-
+                String[] split = url.split(" ");
+                extend = split[split.length - 1];
             }
-            HashMap<String, String> readHeader = readHeader(bufferedReader, line);
+            HashMap<String, String> header;
+            header = readHeader(bufferedReader, line);
+            System.out.println(header.keySet());
 
             if (method.equals("GET")) {
 
@@ -69,11 +74,29 @@ public class RequestHandler extends Thread {
 
                     );
                     addUser(user);
-                    log.info(user.toString());
+                } else if (requestUrl.equals("/user/list")) {
+                    Map<String, String> cookie = HttpRequestUtils.parseCookies(header.get("Cookie"));
+
+                    if (Boolean.parseBoolean(cookie.get("logined"))) {
+
+                        ArrayList<User> users = new ArrayList<>(findAll());
+                        StringBuilder sb = new StringBuilder();
+                        for (User user : users) {
+                            sb.append(user.toString()).append('\n');
+                        }
+                        DataOutputStream dos = new DataOutputStream(out);
+                        response200Header(dos, sb.length(),header);
+                        responseBody(dos, String.valueOf(sb).getBytes(StandardCharsets.UTF_8));
+
+                    } else {
+                        response302Header(new DataOutputStream(out), "/index.html");
+                    }
+
+
                 } else {
                     DataOutputStream dos = new DataOutputStream(out);
                     byte[] body = Files.readAllBytes(new File(WEBAPP + requestUrl).toPath());
-                    response200Header(dos, body.length);
+                    response200Header(dos, body.length, header);
                     responseBody(dos, body);
                 }
 
@@ -81,7 +104,7 @@ public class RequestHandler extends Thread {
             } else if (method.equals("POST")) {
 
                 if (requestUrl.equals("/user/create")) {
-                    String requestBody = readData(bufferedReader, Integer.parseInt(readHeader.get(HttpHeader.CONTENT_LENGTH)));
+                    String requestBody = readData(bufferedReader, Integer.parseInt(header.get(HttpHeader.CONTENT_LENGTH)));
                     queryString = parseQueryString(requestBody);
                     User user = new User(
                             queryString.get("userId"),
@@ -97,11 +120,11 @@ public class RequestHandler extends Thread {
                     String redirectUrl = "http://localhost:8080/index.html";
                     response302Header(dos, redirectUrl);
                 } else if (requestUrl.equals("/user/login")) {
-                    String requestBody = readData(bufferedReader, Integer.parseInt(readHeader.get(HttpHeader.CONTENT_LENGTH)));
+                    String requestBody = readData(bufferedReader, Integer.parseInt(header.get(HttpHeader.CONTENT_LENGTH)));
                     queryString = parseQueryString(requestBody);
                     String userId = queryString.get("userId");
                     String password = queryString.get("password");
-                    User findUser = DataBase.findUserById(userId);
+                    User findUser = findUserById(userId);
                     if (findUser.getPassword().equals(password)) {
                         DataOutputStream dos = new DataOutputStream(out);
                         responseLogin302SuccessHeader(dos);
@@ -117,13 +140,6 @@ public class RequestHandler extends Thread {
                 }
             }
 
-
-//            HashMap<String, String> readHeader = readHeader(bufferedReader, line);
-//
-//            DataOutputStream dos = new DataOutputStream(out);
-//            byte[] body = Files.readAllBytes(new File(WEBAPP + url).toPath());
-//            response200Header(dos, body.length);
-//            responseBody(dos, body);
         } catch (IOException e) {
             log.error(e.getMessage());
         }
@@ -133,6 +149,8 @@ public class RequestHandler extends Thread {
         dos.writeBytes("HTTP/1.1 302 Redirect \r\n");
         dos.writeBytes("Set-Cookie: logined=true \r\n");
         dos.writeBytes("Location: /index.html \r\n");
+        dos.writeBytes("Accept: text/css, */*;q=0.1\r\n");
+
         dos.writeBytes("\r\n");
 
 
@@ -153,11 +171,16 @@ public class RequestHandler extends Thread {
         return headerMap;
     }
 
-    private void response200Header(DataOutputStream dos, int lengthOfBodyContent) {
+    private void response200Header(DataOutputStream dos, int lengthOfBodyContent, HashMap<String, String> header) {
         try {
             dos.writeBytes("HTTP/1.1 200 OK \r\n");
-            dos.writeBytes("Content-Type: text/html;charset=utf-8\r\n");
+            if (header.get("Accept").equals("text/html")) {
+                dos.writeBytes("Content-Type: text/html;charset=utf-8\r\n");
+            } else if (header.get("Accept").equals("text/css")) {
+                dos.writeBytes("Content-type : text/css");
+            }
             dos.writeBytes("Content-Length: " + lengthOfBodyContent + "\r\n");
+//            dos.writeBytes("Accept: text/css, */*;q=0.1\r\n");
             dos.writeBytes("\r\n");
         } catch (IOException e) {
             log.error(e.getMessage());
@@ -167,6 +190,7 @@ public class RequestHandler extends Thread {
     private void response302Header(DataOutputStream dos, String redirectUrl) {
         try {
             dos.writeBytes("HTTP/1.1 302 Found \n");
+            dos.writeBytes("Accept: text/css, */*;q=0.1\r\n");
             dos.writeBytes("Location: " + redirectUrl + '\n');
         } catch (IOException e) {
             throw new RuntimeException(e);
