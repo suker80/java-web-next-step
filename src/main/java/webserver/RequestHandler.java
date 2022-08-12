@@ -11,6 +11,7 @@ import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -23,7 +24,7 @@ public class RequestHandler extends Thread {
     public static final String BASE_URL = "http://localhost:8080/";
     private static final Logger log = LoggerFactory.getLogger(RequestHandler.class);
 
-    private Socket connection;
+    private final Socket connection;
 
     public RequestHandler(Socket connectionSocket) {
         this.connection = connectionSocket;
@@ -36,7 +37,7 @@ public class RequestHandler extends Thread {
         try (InputStream in = connection.getInputStream(); OutputStream out = connection.getOutputStream()) {
             // TODO 사용자 요청에 대한 처리는 이 곳에 구현하면 된다.
 
-            BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(in, "utf-8"));
+            BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8));
             String line = bufferedReader.readLine();
             if (line == null) {
                 return;
@@ -45,23 +46,17 @@ public class RequestHandler extends Thread {
             String[] http = line.split(" ");
             String method = http[0];
             String url = http[1];
-            String protocol = http[2];
             String requestUrl = url;
             String[] s = url.split(" ");
-            System.out.println(s);
             Map<String, String> queryString = new HashMap<>();
             int index = url.indexOf("?");
-            String extend = null;
             if (index != -1) {
                 requestUrl = url.substring(0, index);
                 String param = url.substring(index + 1);
                 queryString = parseQueryString(param);
-                String[] split = url.split(" ");
-                extend = split[split.length - 1];
             }
             HashMap<String, String> header;
             header = readHeader(bufferedReader, line);
-            System.out.println(header.keySet());
 
             if (method.equals("GET")) {
 
@@ -125,13 +120,12 @@ public class RequestHandler extends Thread {
                     String userId = queryString.get("userId");
                     String password = queryString.get("password");
                     User findUser = findUserById(userId);
+                    DataOutputStream dos = new DataOutputStream(out);
                     if (findUser.getPassword().equals(password)) {
-                        DataOutputStream dos = new DataOutputStream(out);
                         responseLogin302SuccessHeader(dos);
 
                     } else {
 
-                        DataOutputStream dos = new DataOutputStream(out);
                         dos.writeBytes("Set-Cookie: logined=false\n");
                         dos.writeBytes("access-control-expose-headers: Set-Cookie\r\n");
 
