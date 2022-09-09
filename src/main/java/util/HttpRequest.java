@@ -33,6 +33,11 @@ public class HttpRequest {
         }
         readHeader(bufferedReader, line);
 
+        if (getMethod().equals("POST")) {
+            String line1 = bufferedReader.readLine();
+            queryString = parseQueryString(line1);
+        }
+
     }
 
 
@@ -53,7 +58,7 @@ public class HttpRequest {
     }
     private void readHeader(BufferedReader bufferedReader, String line) throws IOException {
 
-        while (!"".equals(line)) {
+        while (!line.isEmpty()) {
             line = bufferedReader.readLine();
             if (line.isEmpty()) {
                 break;
