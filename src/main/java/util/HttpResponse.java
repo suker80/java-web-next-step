@@ -61,7 +61,8 @@ public class HttpResponse {
             dos.writeBytes("Accept: text/css, */*;q=0.1\r\n");
             dos.writeBytes("Location: " + redirectUrl + '\n');
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            e.printStackTrace();
+
         }
     }
 
@@ -72,5 +73,10 @@ public class HttpResponse {
         } catch (IOException e) {
             log.error(e.getMessage());
         }
+    }
+
+    public void responseLoginHeader() throws IOException {
+        dos.writeBytes("Set-Cookie: logined=false\n");
+        dos.writeBytes("access-control-expose-headers: Set-Cookie\r\n");
     }
 }

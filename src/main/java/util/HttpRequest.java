@@ -17,6 +17,7 @@ public class HttpRequest {
     private final Map<String, String> header = new HashMap<>();
     public HttpRequest(InputStream inputStream) throws IOException {
         BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8));
+
         String line = bufferedReader.readLine();
         if (line == null) {
             return;
@@ -34,8 +35,8 @@ public class HttpRequest {
         readHeader(bufferedReader, line);
 
         if (getMethod().equals("POST")) {
-            String line1 = bufferedReader.readLine();
-            queryString = parseQueryString(line1);
+            String body = IOUtils.readData(bufferedReader, Integer.parseInt(header.get("Content-Length")));
+            queryString = parseQueryString(body);
         }
 
     }

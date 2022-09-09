@@ -1,5 +1,9 @@
 package webserver;
 
+import controller.Controller;
+import controller.ListUserController;
+import controller.LoginController;
+import controller.UserCreateController;
 import model.User;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,6 +18,7 @@ import java.io.OutputStream;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Map;
 
 import static db.DataBase.*;
@@ -26,9 +31,14 @@ public class RequestHandler extends Thread {
     private final Socket connection;
     private HttpRequest request;
     private HttpResponse response;
+    private Map<String, Controller> controllerMap = new HashMap<>();
 
     public RequestHandler(Socket connectionSocket) {
         this.connection = connectionSocket;
+        controllerMap.put("/user/create", new UserCreateController());
+        controllerMap.put("/user/login", new LoginController());
+        controllerMap.put("/user/list", new ListUserController());
+
     }
 
     public void run() {
@@ -37,73 +47,16 @@ public class RequestHandler extends Thread {
 
         try (InputStream in = connection.getInputStream(); OutputStream out = connection.getOutputStream()) {
 
-            request = new HttpRequest(in);
-            response = new HttpResponse(out);
-            if (request.getMethod().equals("GET")) {
+            HttpRequest request = new HttpRequest(in);
+            log.debug(request.getPath());
 
-                if (request.getPath().equals("/user/create")) {
-                    User user = new User(
-                            request.getParameter("userId"),
-                            request.getParameter("password"),
-                            request.getParameter("name"),
-                            request.getParameter("email")
-
-                    );
-                    addUser(user);
-                } else if (request.getPath().equals("/user/list")) {
-                    Map<String, String> cookie = HttpRequestUtils.parseCookies(request.getHeader("Cookie"));
-
-                    if (Boolean.parseBoolean(cookie.get("logined"))) {
-
-                        ArrayList<User> users = new ArrayList<>(findAll());
-                        StringBuilder sb = new StringBuilder();
-                        for (User user : users) {
-                            sb.append(user.toString()).append('\n');
-                        }
-
-                        response.response200Header(sb.length(), request.getHeader("Accept"));
-                        response.responseBody(String.valueOf(sb).getBytes(StandardCharsets.UTF_8));
-
-                    } else {
-                        response.sendRedirect("/index.html");
-                    }
-
-
-                } else {
-                    String pathname = WEBAPP + request.getPath();
-                    response.forward(pathname);
-                }
-
-
-            } else if (request.getMethod().equals("POST")) {
-
-                if (request.getPath().equals("/user/create")) {
-                    User user = new User(
-                            request.getParameter("userId"),
-                            request.getParameter("password"),
-                            request.getParameter("name"),
-                            request.getParameter("email")
-
-                    );
-                    addUser(user);
-                    log.info(user.toString());
-                    response.sendRedirect("http://localhost:8080/index.html");
-                } else if (request.getPath().equals("/user/login")) {
-                    String userId = request.getParameter("userId");
-                    String password = request.getParameter("password");
-                    User findUser = findUserById(userId);
-                    if (findUser.getPassword().equals(password)) {
-                        response.responseLogin302SuccessHeader();
-
-                    } else {
-                        DataOutputStream dos = new DataOutputStream(out);
-                        dos.writeBytes("Set-Cookie: logined=false\n");
-                        dos.writeBytes("access-control-expose-headers: Set-Cookie\r\n");
-                        response.sendRedirect(BASE_URL + "/login.html\r\n");
-                    }
-                }
+            HttpResponse response = new HttpResponse(out);
+            Controller controller = controllerMap.get(request.getPath());
+            if (controller == null) {
+                response.forward(WEBAPP + request.getPath());
+            } else {
+                controller.service(request, response);
             }
-
         } catch (IOException e) {
             log.error(e.getMessage());
         }
