@@ -1,14 +1,15 @@
 package cookie;
 
-import java.util.HashMap;
+import util.HttpRequestUtils;
+
 import java.util.Map;
 
 public class HttpCookie {
 
-    private Map<String, String> cookie;
+    private final Map<String, String> cookie;
 
-    public HttpCookie(Map<String, String> cookie) {
-        this.cookie = cookie;
+    public HttpCookie(String cookie) {
+        this.cookie = HttpRequestUtils.parseCookies(cookie);
     }
 
     public String getAttributes(String name) {

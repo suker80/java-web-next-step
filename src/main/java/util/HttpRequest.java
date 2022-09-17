@@ -42,7 +42,7 @@ public class HttpRequest {
             String body = IOUtils.readData(bufferedReader, Integer.parseInt(header.get("Content-Length")));
             queryString = parseQueryString(body);
         }
-        cookie = new HttpCookie(HttpRequestUtils.parseCookies(getHeader("Cookie")));
+        cookie = new HttpCookie(getHeader("Cookie"));
 
     }
 
