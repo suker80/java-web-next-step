@@ -31,6 +31,7 @@ public class ListUserController extends AbstractController {
             }
 
             response.response200Header(sb.length(), request.getHeader("Accept"));
+            response.writeHeader();
             response.responseBody(String.valueOf(sb).getBytes(StandardCharsets.UTF_8));
 
         } else {

@@ -19,6 +19,7 @@ public class LoginController extends AbstractController {
         if (findUser.getPassword().equals(password)) {
             try {
                 response.responseLogin302SuccessHeader();
+                response.writeHeader();
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
