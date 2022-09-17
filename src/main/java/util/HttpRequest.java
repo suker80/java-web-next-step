@@ -1,5 +1,7 @@
 package util;
 
+import cookie.HttpCookie;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -15,6 +17,8 @@ public class HttpRequest {
     private String path;
     private Map<String, String> queryString = new HashMap<>();
     private final Map<String, String> header = new HashMap<>();
+    private HttpCookie cookie;
+
     public HttpRequest(InputStream inputStream) throws IOException {
         BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8));
 
@@ -38,6 +42,7 @@ public class HttpRequest {
             String body = IOUtils.readData(bufferedReader, Integer.parseInt(header.get("Content-Length")));
             queryString = parseQueryString(body);
         }
+        cookie = new HttpCookie(HttpRequestUtils.parseCookies(getHeader("Cookie")));
 
     }
 
@@ -57,6 +62,11 @@ public class HttpRequest {
     public String getMethod() {
         return method;
     }
+
+    public HttpCookie getCookie() {
+        return cookie;
+    }
+
     private void readHeader(BufferedReader bufferedReader, String line) throws IOException {
 
         while (!line.isEmpty()) {

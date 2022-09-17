@@ -7,8 +7,12 @@ import webserver.RequestHandler;
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.HashMap;
+import java.util.Map;
 
 public class HttpResponse {
+    public static final String SET_COOKIE = "Set-Cookie";
+    private Map<String, String> responseHeader = new HashMap<>();
     private static final Logger log = LoggerFactory.getLogger(HttpResponse.class);
     private DataOutputStream dos;
 
@@ -17,49 +21,54 @@ public class HttpResponse {
         dos = new DataOutputStream(outPutStream);
     }
 
-    public void forward(String s)  {
-        byte[] bytes = new byte[0];
+    public void forward(String s) {
+        byte[] bytes;
         try {
             bytes = Files.readAllBytes(Paths.get(s));
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-        response200Header(bytes.length,s);
+        response200Header(bytes.length, s);
+        writeHeader();
         responseBody(bytes);
     }
 
     public void sendRedirect(String s) {
         response302Header(s);
+        writeHeader();
+    }
+
+    public void addHeader(String key, String value) {
+        responseHeader.put(key, value);
     }
 
     public void responseLogin302SuccessHeader() throws IOException {
+
         dos.writeBytes("HTTP/1.1 302 Redirect \r\n");
-        dos.writeBytes("Location: /index.html \r\n");
-        dos.writeBytes("Accept: text/css, */*;q=0.1\r\n");
-        dos.writeBytes("\r\n");
-
-
+        responseHeader.put("Location", "/index.html");
+        responseHeader.put("Accept", "text/css, */*;q=0.1");
+        setCookie("logined=true");
     }
 
     public void response200Header(int lengthOfBodyContent, String accept) {
         try {
             dos.writeBytes("HTTP/1.1 200 OK \r\n");
             if (accept.endsWith(".html")) {
-                dos.writeBytes("Content-Type: text/html;charset=utf-8\r\n");
+                responseHeader.put("Content-Type", "text/html;charset=utf-8");
             } else if (accept.endsWith(".css")) {
-                dos.writeBytes("Content-type : text/css\r\n");
+                responseHeader.put("Content-type", "text/css");
             }
-            dos.writeBytes("Content-Length: " + lengthOfBodyContent + "\r\n");
-            dos.writeBytes("\r\n");
+            responseHeader.put("Content-Length", String.valueOf(lengthOfBodyContent));
         } catch (IOException e) {
             log.error(e.getMessage());
         }
     }
+
     private void response302Header(String redirectUrl) {
         try {
-            dos.writeBytes("HTTP/1.1 302 Found \n");
-            dos.writeBytes("Accept: text/css, */*;q=0.1\r\n");
-            dos.writeBytes("Location: " + redirectUrl + '\n');
+            dos.writeBytes("HTTP/1.1 302 Found");
+            responseHeader.put("Accept", "text/css, */*;q=0.1");
+            responseHeader.put("Location", redirectUrl);
         } catch (IOException e) {
             e.printStackTrace();
 
@@ -75,8 +84,34 @@ public class HttpResponse {
         }
     }
 
-    public void responseLoginHeader() throws IOException {
-        dos.writeBytes("Set-Cookie: logined=false\n");
-        dos.writeBytes("access-control-expose-headers: Set-Cookie\r\n");
+    public void writeHeader() {
+        responseHeader.forEach((s, s2) -> {
+            try {
+                dos.writeBytes(s + ": " + s2 + "\r\n");
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        });
+        try {
+            dos.writeBytes("\r\n");
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+    }
+
+    public String getHeader(String key) {
+        return responseHeader.get(key);
+    }
+
+    public void setCookie(String value) {
+        String header = getHeader(SET_COOKIE);
+        if (header == null) {
+            responseHeader.put(SET_COOKIE, value);
+        } else {
+            responseHeader.replace(SET_COOKIE, header + "; " + value);
+        }
+        responseHeader.put("access-control-expose-headers", "Set-Cookie");
+
     }
 }
