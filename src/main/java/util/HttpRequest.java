@@ -1,6 +1,8 @@
 package util;
 
 import cookie.HttpCookie;
+import session.HttpSession;
+import session.HttpSessions;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -79,5 +81,10 @@ public class HttpRequest {
 
 
         }
+    }
+
+    public HttpSession getSession() {
+        return HttpSessions.getSession(getCookie().getAttributes("JSESSIONID"));
+
     }
 }

@@ -6,7 +6,7 @@ import controller.LoginController;
 import controller.UserCreateController;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import session.HttpSessoins;
+import session.HttpSessions;
 import util.HttpRequest;
 import util.HttpResponse;
 
@@ -48,7 +48,7 @@ public class RequestHandler extends Thread {
 
 
             if (request.getCookie().getAttributes(jsessionid) == null) {
-                String sessionId = HttpSessoins.newSession();
+                String sessionId = HttpSessions.newSession();
                 response.setCookie(jsessionid + "=" + sessionId);
             }
             if (controller == null) {

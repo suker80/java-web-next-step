@@ -16,13 +16,10 @@ public class LoginController extends AbstractController {
         String userId = request.getParameter("userId");
         String password = request.getParameter("password");
         User findUser = findUserById(userId);
+        request.getSession().setAttribute("user", findUser);
         if (findUser.getPassword().equals(password)) {
-            try {
-                response.responseLogin302SuccessHeader();
-                response.writeHeader();
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
+            response.response302Header("/index.html");
+            response.writeHeader();
 
         } else {
             response.sendRedirect(BASE_URL + "/login.html\r\n");

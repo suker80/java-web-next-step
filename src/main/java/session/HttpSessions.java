@@ -4,7 +4,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
-public class HttpSessoins {
+public class HttpSessions {
     private static Map<String, HttpSession> sessionMap = new HashMap<>();
 
     public static String newSession() {

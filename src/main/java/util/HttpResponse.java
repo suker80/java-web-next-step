@@ -2,9 +2,10 @@ package util;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import webserver.RequestHandler;
 
-import java.io.*;
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.HashMap;
@@ -38,18 +39,6 @@ public class HttpResponse {
         writeHeader();
     }
 
-    public void addHeader(String key, String value) {
-        responseHeader.put(key, value);
-    }
-
-    public void responseLogin302SuccessHeader() throws IOException {
-
-        dos.writeBytes("HTTP/1.1 302 Redirect \r\n");
-        responseHeader.put("Location", "/index.html");
-        responseHeader.put("Accept", "text/css, */*;q=0.1");
-        setCookie("logined=true");
-    }
-
     public void response200Header(int lengthOfBodyContent, String accept) {
         try {
             dos.writeBytes("HTTP/1.1 200 OK \r\n");
@@ -64,7 +53,7 @@ public class HttpResponse {
         }
     }
 
-    private void response302Header(String redirectUrl) {
+    public void response302Header(String redirectUrl) {
         try {
             dos.writeBytes("HTTP/1.1 302 Found");
             responseHeader.put("Accept", "text/css, */*;q=0.1");
